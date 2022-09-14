@@ -1,6 +1,7 @@
 import sys
 import os
 import argparse
+from pprint import pprint
 if True:
     selfdir = os.path.dirname(__file__)
     rootdir = os.path.join(selfdir, '..')
@@ -18,10 +19,10 @@ def main():
     lldb.load(args.elf)
     lldb.run_stop_at_start()
     regs = lldb.reg_read()
-    print(regs)
+    pprint(regs)
     pc = lldb.read_pc()
-    mem = lldb.mem_read(4, pc)
-    print(hex(mem))
+    mems = lldb.mem_read(pc, size=4, count=10)
+    pprint([hex(m) for m in mems])
     lldb.quit()
 
 
