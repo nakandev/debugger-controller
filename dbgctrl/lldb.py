@@ -8,6 +8,9 @@ import fcntl
 
 
 class LLDBController():
+    DEFAULT_TIMEOUT = 1.0
+    DEFAULT_ROUNDUP_TIME = 0.2
+
     pattern_pc = re.compile(r'\-\> +([0-9a-fA-Fx]+)')
     pattern_reg_category = re.compile(r'^(.+): *$')
     pattern_reg_namevalue = re.compile(r' +([^ ]+) += +([0-9a-fA-Fx]+) *.*$')
@@ -18,6 +21,7 @@ class LLDBController():
         self.elfpath = None
         self._process = None
         self._stdout = None
+        self.roundup_time = LLDBController.DEFAULT_ROUNDUP_TIME
         self.check_debugger_exists()
         self.exec_lldb()
 
@@ -41,21 +45,29 @@ class LLDBController():
         # fcntl.fcntl(self.stderr.fileno(), fcntl.F_SETFL, os.O_NONBLOCK)
         print('lldb start up.')
 
-    def exec_command(self, cmd, timeout=1):
+    def exec_command(self, cmd, timeout=None):
         self._process.stdin.write(f'{cmd}\n'.encode())
         self._process.stdin.flush()
         return self.get_response(timeout=timeout)
 
-    def load(self, elfpath):
+    def load(self, elfpath, timeout=None):
         self.elfpath = elfpath
-        self.exec_command(f'file {elfpath}')
+        self.exec_command(f'file {elfpath}', timeout=timeout)
 
     def quit(self):
         self.exec_command('q')
+        print('lldb exited.')
+        if self._process:
+            self._process.terminate()
+            self._process.wait()
+            self._process.communicate()
+            self._process = None
 
-    def get_response(self, timeout=1):
+    def get_response(self, timeout=None):
+        if timeout is None:
+            timeout = LLDBController.DEFAULT_TIMEOUT
         timeout_time = time.time() + timeout
-        res = []
+        responses = []
         while True:
             select_timeout = timeout_time - time.time()
             if select_timeout <= 0:
@@ -64,34 +76,37 @@ class LLDBController():
                 [self._process.stdout.fileno()], [], [],
                 select_timeout
             )
-            # local_res = None
+            res = None
             if rready:
                 for fileno in rready:
                     if fileno == self._process.stdout.fileno():
                         self._process.stdout.flush()
-                        res += [self._process.stdout.read()]
+                        res = self._process.stdout.read()
+                        responses += [res]
                     else:
                         raise Exception("Unknown fd: {}".format(fileno))
             if timeout == 0:
                 break
+            elif res and (self.roundup_time > 0):
+                timeout_time = min(time.time() + self.roundup_time, timeout_time)
             elif time.time() > timeout_time:
                 break
-        response = ''.join([r.decode() for r in res])
+        response = ''.join([r.decode() for r in responses])
         return response
 
-    def run_stop_at_start(self):
-        return self.exec_command('pr la -s')
+    def run_stop_at_start(self, timeout=None):
+        return self.exec_command('pr la -s', timeout=timeout)
 
-    def read_pc(self):
-        response = self.exec_command('dis -pc -c 1')
+    def read_pc(self, timeout=5):
+        response = self.exec_command('dis -pc -c 1', timeout=timeout)
         for line in response.splitlines():
             m = self.pattern_pc.match(line)
             if m:
                 return str2int(m.group(1))
         raise Exception("not found pc")
 
-    def reg_read(self, names=None):
-        response = self.exec_command('reg read -a', timeout=3)
+    def reg_read(self, names=None, timeout=5):
+        response = self.exec_command('reg read -a', timeout=timeout)
         regs = self._parse_read_reg(response)
         if names is not None:
             regs = {k: v for k, v in regs.items() if k in names}
@@ -112,10 +127,10 @@ class LLDBController():
                 registers[regname] = {'category': category, 'value': value}
         return registers
 
-    def mem_read(self, addr, size=4, count=1):
+    def mem_read(self, addr, size=4, count=1, timeout=3):
         if type(addr) == int:
             addr = hex(addr)
-        response = self.exec_command(f'mem read -s{size} -fx -c{count} {addr}')
+        response = self.exec_command(f'mem read -s{size} -fx -c{count} {addr}', timeout=timeout)
         mems = []
         for line in response.splitlines()[1:]:
             nums = line.strip().split(' ')
