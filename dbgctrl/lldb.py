@@ -11,8 +11,8 @@ class LLDBController():
     DEFAULT_TIMEOUT = 1.0
     DEFAULT_ROUNDUP_TIME = 0.2
 
-    pattern_exited = re.compile(r'.+ exited with'),
-    pattern_invalid = re.compile(r'error: invalid process'),
+    pattern_exited = re.compile(r'.+ exited with')
+    pattern_invalid = re.compile(r'error: invalid process')
     pattern_dis = re.compile(r'[^:]+:\s(.+)')
     pattern_pc = re.compile(r'\-\> +([0-9A-Fa-fx]+)')
     pattern_reg_category = re.compile(r'^(.+): *$')
@@ -99,23 +99,6 @@ class LLDBController():
 
     def run_stop_at_start(self, timeout=None):
         return self.exec_command('pr la -s', timeout=timeout)
-
-    def is_exit(self, timeout=None):
-        response = self.exec_command('process status', timeout=timeout)
-        for line in response.splitlines():
-            for ptn in (self.pattern_exited, self.pattern_invalid):
-                m = ptn.match(line)
-                if m:
-                    return True
-        return False
-
-    def read_dis(self, timeout=5):
-        response = self.exec_command('dis -pc -c 1', timeout=timeout)
-        for line in response.splitlines():
-            m = self.pattern_dis.match(line)
-            if m:
-                return m.group(1)
-        raise Exception("cannot read disasm")
 
     def read_pc(self, timeout=5):
         response = self.exec_command('dis -pc -c 1', timeout=timeout)
