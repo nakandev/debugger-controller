@@ -18,10 +18,10 @@ def main():
     lldb = LLDBController(args.debugger)
     lldb.load(args.elf)
     lldb.run_stop_at_start()
-    regs = lldb.reg_read()
+    regs = lldb.read_reg()
     pprint(regs)
     pc = lldb.read_pc()
-    mems = lldb.mem_read(pc, size=4, count=10)
+    mems = lldb.read_mem(pc, size=4, count=10)
     pprint([hex(m) for m in mems])
     lldb.quit()
 

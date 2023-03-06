@@ -28,6 +28,13 @@ class LLDBController():
         self.check_debugger_exists()
         self.exec_lldb()
 
+    def __del__(self):
+        if self._process:
+            self._process.terminate()
+            self._process.wait()
+            self._process.communicate()
+            self._process = None
+
     def check_debugger_exists(self):
         if os.path.exists(self.lldbpath):
             return
@@ -100,6 +107,17 @@ class LLDBController():
     def run_stop_at_start(self, timeout=None):
         return self.exec_command('pr la -s', timeout=timeout)
 
+    def step_in(self, inst=False, timeout=None):
+        cmd = 'si'if inst else 's'
+        return self.exec_command(cmd, timeout=timeout)
+
+    def step_over(self, inst=False, timeout=None):
+        cmd = 'ni'if inst else 'n'
+        return self.exec_command(cmd, timeout=timeout)
+
+    def step_out(self, inst=False, timeout=None):
+        return self.exec_command('finish', timeout=timeout)
+
     def read_pc(self, timeout=5):
         response = self.exec_command('dis -pc -c 1', timeout=timeout)
         for line in response.splitlines():
@@ -108,7 +126,7 @@ class LLDBController():
                 return str2int(m.group(1))
         raise Exception("not found pc")
 
-    def reg_read(self, names=None, timeout=5):
+    def read_reg(self, names=None, timeout=5):
         response = self.exec_command('reg read -a', timeout=timeout)
         regs = self._parse_read_reg(response)
         if names is not None:
@@ -130,7 +148,7 @@ class LLDBController():
                 registers[regname] = {'category': category, 'value': value}
         return registers
 
-    def mem_read(self, addr, size=4, count=1, timeout=3):
+    def read_mem(self, addr, size=4, count=1, timeout=3):
         if type(addr) == int:
             addr = hex(addr)
         response = self.exec_command(f'mem read -s{size} -fx -c{count} {addr}', timeout=timeout)
