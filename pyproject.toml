@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "debugger-controller"
+version = "0.1.0"
+description = "GDB/LLDB Controller"
+authors = ["nakandev <nakandev.s@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [
+    { include = "dbgctrl" },
+]
+
+[tool.poetry.scripts]
+dbgctrl-regdump = "dbgctrl.app.regdump:main"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^0.982"
+
+[tool.mypy]
+python_version = "3.8"
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

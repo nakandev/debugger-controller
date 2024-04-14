@@ -6,7 +6,7 @@ if True:
     selfdir = os.path.dirname(__file__)
     rootdir = os.path.join(selfdir, '..')
     sys.path.insert(0, rootdir)
-from dbgctrl.lldb import LLDBController
+import dbgctrl
 
 
 def main():
@@ -15,15 +15,15 @@ def main():
     argparser.add_argument('elf')
     args = argparser.parse_args()
 
-    lldb = LLDBController(args.debugger)
-    lldb.load(args.elf)
-    lldb.run_stop_at_start()
-    regs = lldb.read_reg()
+    dbg = dbgctrl.controller(args.debugger)
+    dbg.load(args.elf)
+    dbg.run_stop_at_start()
+    regs = dbg.read_reg()
     pprint(regs)
-    pc = lldb.read_pc()
-    mems = lldb.read_mem(pc, size=4, count=10)
+    pc = dbg.read_pc()
+    mems = dbg.read_mem(pc, size=4, count=10)
     pprint([hex(m) for m in mems])
-    lldb.quit()
+    dbg.quit()
 
 
 if __name__ == '__main__':
